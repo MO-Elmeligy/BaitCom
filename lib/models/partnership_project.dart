@@ -13,6 +13,7 @@ class PartnershipProject {
     this.totalUnits,
     this.landPriceEgp,
     this.estimatedBuildCostEgp,
+    this.minimumContributionEgp,
     this.status = 'open',
   });
 
@@ -28,6 +29,7 @@ class PartnershipProject {
   final int? totalUnits;
   final double? landPriceEgp;
   final double? estimatedBuildCostEgp;
+  final double? minimumContributionEgp;
   final String status;
 
   factory PartnershipProject.fromJson(Map<String, dynamic> json) {
@@ -55,30 +57,34 @@ class PartnershipProject {
       estimatedBuildCostEgp: json['estimatedBuildCostEgp'] == null
           ? null
           : numeric(json['estimatedBuildCostEgp']).toDouble(),
+      minimumContributionEgp: json['minimumContributionEgp'] == null
+          ? null
+          : numeric(json['minimumContributionEgp']).toDouble(),
     );
   }
 
-  String get membersLabel =>
-      '${_easternDigits(currentMemberCount.toString())} شريكاً';
+  String membersLabel({bool isArabic = true}) => isArabic
+      ? '${_localizeDigits(currentMemberCount.toString(), true)} شريكاً'
+      : '$currentMemberCount partners';
 
-  String get durationLabel =>
-      '${_easternDigits(expectedDurationMonths.toString())} شهراً';
+  String durationLabel({bool isArabic = true}) => isArabic
+      ? '${_localizeDigits(expectedDurationMonths.toString(), true)} شهراً'
+      : '$expectedDurationMonths months';
 
-  static String _easternDigit(String d) =>
-      const {
-        '0': '٠',
-        '1': '١',
-        '2': '٢',
-        '3': '٣',
-        '4': '٤',
-        '5': '٥',
-        '6': '٦',
-        '7': '٧',
-        '8': '٨',
-        '9': '٩',
-      }[d] ??
-      d;
-
-  static String _easternDigits(String s) =>
-      s.split('').map(_easternDigit).join();
+  static String _localizeDigits(String value, bool isArabic) {
+    const westernToEastern = {
+      '0': '٠',
+      '1': '١',
+      '2': '٢',
+      '3': '٣',
+      '4': '٤',
+      '5': '٥',
+      '6': '٦',
+      '7': '٧',
+      '8': '٨',
+      '9': '٩',
+    };
+    return value.replaceAllMapped(RegExp(r'[0-9]'), (match) =>
+        isArabic ? westernToEastern[match[0]]! : match[0]!);
+  }
 }

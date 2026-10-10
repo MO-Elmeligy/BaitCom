@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "143580228242",
+    "project_id": "baitco",
+    "storage_bucket": "baitco.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:143580228242:android:27d0cf2ef819bfc4efd44b",
+        "android_client_info": {
+          "package_name": "com.realestate.real_estate_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "143580228242-omqhlfkrqh7md6ujonq1btrhotgg5hhq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCsHUTpq2Ifd25ymVM52CiKm-7B24xxQFs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "143580228242-omqhlfkrqh7md6ujonq1btrhotgg5hhq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

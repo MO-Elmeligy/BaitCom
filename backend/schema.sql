@@ -3,17 +3,23 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TYPE account_role AS ENUM ('buyer', 'seller', 'project_manager');
 CREATE TYPE listing_status AS ENUM ('draft', 'pending_review', 'published', 'paused', 'sold', 'rejected');
-CREATE TYPE project_status AS ENUM ('draft', 'pending_review', 'open', 'funding_complete', 'in_progress', 'completed', 'cancelled');
+CREATE TYPE project_status AS ENUM ('draft', 'pending_review', 'open', 'funding_complete', 'in_progress', 'completed', 'cancelled', 'rejected');
+ALTER TYPE project_status ADD VALUE IF NOT EXISTS 'rejected';
 CREATE TYPE join_status AS ENUM ('pending', 'approved', 'declined', 'withdrawn');
 
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firebase_uid VARCHAR(128),
   phone VARCHAR(24) UNIQUE NOT NULL,
   display_name VARCHAR(120) NOT NULL,
   role account_role NOT NULL DEFAULT 'buyer',
   verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128);
+CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_idx
+  ON users(firebase_uid) WHERE firebase_uid IS NOT NULL;
 
 CREATE TABLE properties (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,6 +49,8 @@ CREATE TABLE property_media (
   media_type VARCHAR(16) NOT NULL DEFAULT 'image',
   sort_order SMALLINT NOT NULL DEFAULT 0
 );
+CREATE INDEX property_media_property_sort_idx
+  ON property_media(property_id, sort_order);
 
 CREATE TABLE partnership_projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -54,6 +62,7 @@ CREATE TABLE partnership_projects (
   location GEOGRAPHY(POINT, 4326),
   land_price_egp NUMERIC(14,2) NOT NULL CHECK (land_price_egp > 0),
   build_cost_egp NUMERIC(14,2) NOT NULL CHECK (build_cost_egp >= 0),
+  minimum_contribution_egp NUMERIC(14,2) NOT NULL CHECK (minimum_contribution_egp > 0),
   additional_costs_egp NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (additional_costs_egp >= 0),
   total_units SMALLINT NOT NULL CHECK (total_units > 0),
   target_members SMALLINT NOT NULL CHECK (target_members > 0),
@@ -62,6 +71,23 @@ CREATE TABLE partnership_projects (
   status project_status NOT NULL DEFAULT 'draft',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE partnership_projects ADD COLUMN IF NOT EXISTS minimum_contribution_egp NUMERIC(14,2);
+UPDATE partnership_projects
+SET minimum_contribution_egp = GREATEST(1, CEIL((land_price_egp + build_cost_egp + additional_costs_egp) / target_members))
+WHERE minimum_contribution_egp IS NULL;
+ALTER TABLE partnership_projects ALTER COLUMN minimum_contribution_egp SET NOT NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'partnership_projects_minimum_contribution_check'
+  ) THEN
+    ALTER TABLE partnership_projects
+      ADD CONSTRAINT partnership_projects_minimum_contribution_check
+      CHECK (minimum_contribution_egp > 0);
+  END IF;
+END $$;
+
 CREATE INDEX projects_city_status_idx ON partnership_projects(city, status);
 CREATE INDEX projects_location_idx ON partnership_projects USING GIST(location);
 
@@ -85,6 +111,17 @@ CREATE TABLE partnership_members (
   requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(project_id, user_id)
 );
+
+CREATE TABLE admin_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_user_id UUID NOT NULL REFERENCES users(id),
+  target_type VARCHAR(32) NOT NULL,
+  target_id UUID NOT NULL,
+  decision VARCHAR(16) NOT NULL CHECK (decision IN ('approve', 'reject')),
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX admin_audit_log_target_idx ON admin_audit_log(target_type, target_id, created_at);
 
 CREATE TABLE project_updates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
