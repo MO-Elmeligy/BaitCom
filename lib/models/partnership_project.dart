@@ -15,6 +15,7 @@ class PartnershipProject {
     this.estimatedBuildCostEgp,
     this.minimumContributionEgp,
     this.status = 'open',
+    this.contactPhone = '',
   });
 
   final String id;
@@ -31,6 +32,7 @@ class PartnershipProject {
   final double? estimatedBuildCostEgp;
   final double? minimumContributionEgp;
   final String status;
+  final String contactPhone;
 
   factory PartnershipProject.fromJson(Map<String, dynamic> json) {
     num numeric(Object? value, {num fallback = 0}) => value is num
@@ -42,6 +44,7 @@ class PartnershipProject {
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
       status: json['status'] as String? ?? 'open',
+      contactPhone: json['contactPhone'] as String? ?? '',
       city: json['city'] as String? ?? '',
       district: json['district'] as String? ?? '',
       targetMembers: numeric(json['targetMembers']).toInt(),

@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import '../l10n/app_localizations.dart';
 import '../models/property_listing.dart';
 import '../models/property_media.dart';
+import '../utils/phone_number.dart';
+import '../widgets/posting_fee_notice.dart';
 
 const _formForest = Color(0xFF173B35);
 const _formSand = Color(0xFFF6F4EF);
@@ -31,6 +33,7 @@ class _CreatePropertyPageState extends State<CreatePropertyPage> {
   final _price = TextEditingController();
   final _area = TextEditingController();
   final _bedrooms = TextEditingController(text: '2');
+  final _contactPhone = TextEditingController();
   final _picker = ImagePicker();
   final List<XFile> _selectedMedia = [];
   final Map<XFile, Future<Uint8List>> _mediaPreviews = {};
@@ -51,6 +54,7 @@ class _CreatePropertyPageState extends State<CreatePropertyPage> {
     _price.dispose();
     _area.dispose();
     _bedrooms.dispose();
+    _contactPhone.dispose();
     super.dispose();
   }
 
@@ -70,9 +74,43 @@ class _CreatePropertyPageState extends State<CreatePropertyPage> {
                   _intro(AppLocalizations.of(context).text(
                       'أضف تفاصيل واضحة ليسهل على المشتري العثور على عقارك.')),
                   const SizedBox(height: 18),
+                  const PostingFeeNotice(),
+                  const SizedBox(height: 18),
                   _section(context, 'المعلومات الأساسية'),
                   _input(context, _title, 'عنوان الإعلان',
                       icon: Icons.title, requiredField: true),
+                  const SizedBox(height: 12),
+                  _section(context, 'بيانات التواصل'),
+                  TextFormField(
+                    controller: _contactPhone,
+                    keyboardType: TextInputType.phone,
+                    textDirection: TextDirection.ltr,
+                    textAlign: TextAlign.left,
+                    autofillHints: const [AutofillHints.telephoneNumber],
+                    decoration: _decoration(
+                      context,
+                      'رقم الهاتف للتواصل',
+                      Icons.phone_android,
+                    ),
+                    validator: (value) =>
+                        normalizeContactPhoneNumber(value ?? '') == null
+                        ? AppLocalizations.of(
+                            context,
+                          ).text('أدخل رقم هاتف صحيح للتواصل')
+                        : null,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      AppLocalizations.of(context).text(
+                        'رقم التواصل يظهر للمهتمين بالإعلان ولا يتطلب إرسال رمز تحقق.',
+                      ),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _description,
@@ -430,6 +468,7 @@ class _CreatePropertyPageState extends State<CreatePropertyPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final contactPhone = normalizeContactPhoneNumber(_contactPhone.text)!;
     final bedrooms = int.tryParse(_normalize(_bedrooms.text)) ?? 0;
     setState(() {
       _isSubmitting = true;
@@ -459,6 +498,7 @@ class _CreatePropertyPageState extends State<CreatePropertyPage> {
           areaM2: double.parse(_normalize(_area.text)),
           bedrooms: bedrooms,
           propertyType: _type,
+          contactPhone: contactPhone,
           listIcon:
               _type == 'land' ? Icons.landscape_rounded : Icons.apartment_rounded,
           media: uploadedMedia,

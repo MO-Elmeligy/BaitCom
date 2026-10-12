@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "143580228242-p2to90abqdajn52cgk7enp520iv1dndb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.realestate.real_estate_app",
+            "certificate_hash": "d6eb8f90acd1c298358d4d72c2d9d912a614ba2a"
+          }
+        },
+        {
           "client_id": "143580228242-omqhlfkrqh7md6ujonq1btrhotgg5hhq.apps.googleusercontent.com",
           "client_type": 3
         }

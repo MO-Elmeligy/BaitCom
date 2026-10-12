@@ -10,7 +10,8 @@ CREATE TYPE join_status AS ENUM ('pending', 'approved', 'declined', 'withdrawn')
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   firebase_uid VARCHAR(128),
-  phone VARCHAR(24) UNIQUE NOT NULL,
+  phone VARCHAR(24) UNIQUE,
+  email VARCHAR(320),
   display_name VARCHAR(120) NOT NULL,
   role account_role NOT NULL DEFAULT 'buyer',
   verified_at TIMESTAMPTZ,
@@ -18,6 +19,8 @@ CREATE TABLE users (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128);
+ALTER TABLE users ALTER COLUMN phone DROP NOT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(320);
 CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_idx
   ON users(firebase_uid) WHERE firebase_uid IS NOT NULL;
 
@@ -29,6 +32,7 @@ CREATE TABLE properties (
   property_type VARCHAR(32) NOT NULL,
   city VARCHAR(100) NOT NULL,
   district VARCHAR(120) NOT NULL,
+  contact_phone VARCHAR(24),
   location GEOGRAPHY(POINT, 4326),
   price_egp NUMERIC(14,2) NOT NULL CHECK (price_egp > 0),
   area_m2 NUMERIC(9,2) NOT NULL CHECK (area_m2 > 0),
@@ -39,6 +43,7 @@ CREATE TABLE properties (
   status listing_status NOT NULL DEFAULT 'draft',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(24);
 CREATE INDEX properties_location_idx ON properties USING GIST(location);
 CREATE INDEX properties_search_idx ON properties(city, district, price_egp, status);
 
@@ -59,6 +64,7 @@ CREATE TABLE partnership_projects (
   description TEXT NOT NULL,
   city VARCHAR(100) NOT NULL,
   district VARCHAR(120) NOT NULL,
+  contact_phone VARCHAR(24),
   location GEOGRAPHY(POINT, 4326),
   land_price_egp NUMERIC(14,2) NOT NULL CHECK (land_price_egp > 0),
   build_cost_egp NUMERIC(14,2) NOT NULL CHECK (build_cost_egp >= 0),
@@ -71,6 +77,7 @@ CREATE TABLE partnership_projects (
   status project_status NOT NULL DEFAULT 'draft',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE partnership_projects ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(24);
 ALTER TABLE partnership_projects ADD COLUMN IF NOT EXISTS minimum_contribution_egp NUMERIC(14,2);
 UPDATE partnership_projects
 SET minimum_contribution_egp = GREATEST(1, CEIL((land_price_egp + build_cost_egp + additional_costs_egp) / target_members))

@@ -15,7 +15,7 @@ import '../widgets/liquid_glass_bottom_nav_bar.dart';
 import '../widgets/property_media_gallery.dart';
 import 'create_partnership_page.dart';
 import 'create_property_page.dart';
-import 'phone_auth_page.dart';
+import 'google_sign_in_page.dart';
 
 const _forest = Color(0xFF173B35);
 const _sand = Color(0xFFF6F4EF);
@@ -48,8 +48,7 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
 
   bool get _isPartnerships => _tab == 1;
   bool get _hasApiReadyFirebaseUser =>
-      firebaseAuthReady &&
-      FirebaseAuth.instance.currentUser?.phoneNumber?.isNotEmpty == true;
+      firebaseAuthReady && FirebaseAuth.instance.currentUser != null;
 
   @override
   void initState() {
@@ -920,7 +919,7 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
   Widget _accountPage() {
     final strings = AppLocalizations.of(context);
     final user = firebaseAuthReady ? FirebaseAuth.instance.currentUser : null;
-    final hasApiReadyUser = user?.phoneNumber?.isNotEmpty == true;
+    final hasApiReadyUser = user != null;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -929,7 +928,7 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
           radius: 38,
           backgroundColor: const Color(0xFFDCE9E2),
           child: Icon(
-            user == null ? Icons.person_outline : Icons.verified_user_outlined,
+            user == null ? Icons.person_outline : Icons.account_circle_outlined,
             color: _forest,
             size: 40,
           ),
@@ -949,7 +948,7 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
         ),
         Center(
           child: Text(
-            (hasApiReadyUser ? user?.phoneNumber : user?.email) ??
+            user?.email ??
                 strings.text('سجّل الدخول لإدارة إعلاناتك وطلباتك'),
             style: const TextStyle(color: Colors.black54),
           ),
@@ -964,17 +963,15 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
         ),
         const SizedBox(height: 10),
         FilledButton.icon(
-          onPressed: hasApiReadyUser ? _signOut : _openPhoneSignIn,
+          onPressed: hasApiReadyUser ? _signOut : _openGoogleSignIn,
           icon: Icon(
-            hasApiReadyUser ? Icons.logout : Icons.phone_android,
+            hasApiReadyUser ? Icons.logout : Icons.login,
           ),
           label: Text(
             strings.text(
               hasApiReadyUser
                   ? 'تسجيل الخروج'
-                  : (user == null
-                        ? 'تسجيل الدخول برقم الهاتف'
-                        : 'اربط رقم هاتفك لمتابعة استخدام التطبيق'),
+                  : 'تسجيل الدخول باستخدام Google',
             ),
           ),
         ),
@@ -1019,13 +1016,13 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
     return result is T ? result : null;
   }
 
-  Future<void> _openPhoneSignIn() async {
+  Future<void> _openGoogleSignIn() async {
     final strings = AppLocalizations.of(context);
     if (!firebaseAuthReady) {
       _showMessage(strings.text('إعداد Firebase مطلوب'));
       return;
     }
-    final signedIn = await _pushWithTransition<bool>(const PhoneAuthPage());
+    final signedIn = await _pushWithTransition<bool>(const GoogleSignInPage());
     if (!mounted || signedIn != true) return;
     setState(() {});
     try {
@@ -1172,6 +1169,13 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
                       )
                     : listing.description,
               ),
+              if (listing.contactPhone.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                _contactPhoneInfo(
+                  AppLocalizations.of(context).text('رقم التواصل'),
+                  listing.contactPhone,
+                ),
+              ],
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -1334,6 +1338,13 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
                   'راجع مستندات الأرض وخطة التكلفة وآلية توزيع الوحدات. هذه الصفحة للتعريف بالمشروع فقط، ولا تستقبل أموالاً أو تنشئ التزاماً قانونياً.',
                 ),
               ),
+              if (project.contactPhone.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                _contactPhoneInfo(
+                  AppLocalizations.of(context).text('رقم التواصل'),
+                  project.contactPhone,
+                ),
+              ],
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -1479,6 +1490,42 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
     side: BorderSide.none,
   );
 
+  Widget _contactPhoneInfo(String label, String phone) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFE7EEE9),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.phone_outlined, color: _forest),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: SelectableText(
+                  phone,
+                  style: const TextStyle(
+                    color: _forest,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
   String _formatEgp(double amount, AppLocalizations strings) {
     final digits = amount.round().toString();
     final grouped = StringBuffer();
@@ -1558,7 +1605,7 @@ class _InteractiveHomePageState extends State<InteractiveHomePage> {
   Future<bool> _ensureSignedIn() async {
     if (!firebaseAuthReady) return !kReleaseMode;
     if (_hasApiReadyFirebaseUser) return true;
-    final signedIn = await _pushWithTransition<bool>(const PhoneAuthPage());
+    final signedIn = await _pushWithTransition<bool>(const GoogleSignInPage());
     return signedIn ?? false;
   }
 

@@ -17,6 +17,7 @@ class PropertyListing {
     this.description = '',
     this.status = 'published',
     this.media = const [],
+    this.contactPhone = '',
   });
 
   final String id;
@@ -29,6 +30,7 @@ class PropertyListing {
   final String propertyType;
   final String description;
   final String status;
+  final String contactPhone;
   final IconData listIcon;
   final List<PropertyMedia> media;
 
@@ -43,6 +45,7 @@ class PropertyListing {
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
       status: json['status'] as String? ?? 'published',
+      contactPhone: json['contactPhone'] as String? ?? '',
       city: json['city'] as String? ?? '',
       district: json['district'] as String? ?? '',
       priceEgp:
@@ -75,6 +78,7 @@ class PropertyListing {
         'areaM2': areaM2,
         'bedrooms': bedrooms,
         'status': status,
+        'contactPhone': contactPhone,
         'media': media.map((item) => item.toJson()).toList(growable: false),
       };
 

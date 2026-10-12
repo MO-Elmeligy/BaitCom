@@ -56,11 +56,24 @@ class AppLocalizations {
     'أهلاً بك': 'Welcome back',
     'تسجيل الخروج': 'Sign out',
     'تسجيل الدخول يحتاج إلى إعداد Firebase قبل استخدامه.':
-        'Firebase must be configured before phone sign-in is available.',
+        'Firebase must be configured before sign-in is available.',
     'إعداد Firebase مطلوب': 'Firebase setup required',
     'لم يتم إعداد Firebase لهذا التطبيق بعد. أضف بيانات Firebase الخاصة بتطبيق Android أو iOS إلى خيارات البناء ثم أعد تشغيل التطبيق.':
         'Firebase is not configured for this app. Add the Android or iOS Firebase dart-defines to the build command, then restart the app.',
     'تسجيل الدخول': 'Sign in',
+    'تسجيل الدخول باستخدام Google': 'Sign in with Google',
+    'سجّل الدخول بحساب Google للمتابعة.':
+        'Sign in with your Google account to continue.',
+    'رقم الهاتف يُطلب عند نشر الإعلان للتواصل فقط، ولا يحتاج إلى توثيق.':
+        'Your phone number is only requested as a contact when you post a listing. It will not be verified.',
+    'بيانات التواصل': 'Contact details',
+    'رقم الهاتف للتواصل': 'Contact phone number',
+    'رقم التواصل يظهر للمهتمين بالإعلان ولا يتطلب إرسال رمز تحقق.':
+        'Interested people can see this number. No verification code will be sent.',
+    'رقم التواصل يظهر للمهتمين بالمشروع ولا يتطلب إرسال رمز تحقق.':
+        'Interested people can see this number. No verification code will be sent.',
+    'أدخل رقم هاتف صحيح للتواصل': 'Enter a valid contact phone number',
+    'رقم التواصل': 'Contact phone',
     'تحقق من رقم هاتفك': 'Verify your phone number',
     'وثّق رقم هاتفك لإكمال تسجيل Google':
         'Verify your phone number to finish Google sign-in',
@@ -104,6 +117,17 @@ class AppLocalizations {
         'Check your internet connection and try again.',
     'تعذر التحقق الأمني، حاول مرة أخرى':
         'Security verification failed. Please try again.',
+    'تعذر التحقق من التطبيق. راجع إعداد التحقق من الهاتف في Firebase':
+        'Firebase could not verify this app. Check the Firebase phone-auth app verification setup.',
+    'طريقة تسجيل الدخول غير مفعلة في Firebase Authentication':
+        'This sign-in method is disabled in Firebase Authentication. Enable the provider in the Firebase Console.',
+    'التطبيق غير مسجل بشكل صحيح في Firebase. راجع اسم الحزمة وبصمات التوقيع':
+        'This app is not authorized in Firebase. Check the Android package name and signing certificate fingerprints.',
+    'مفتاح Firebase غير صالح. حدّث إعدادات Firebase للتطبيق':
+        'The Firebase API key is invalid. Update this app’s Firebase configuration.',
+    'نطاق التطبيق غير مسموح به في إعدادات Firebase':
+        'This app domain is not authorized in Firebase.',
+    'تعذر تسجيل الدخول، رمز الخطأ': 'Could not sign in. Firebase error code',
     'تعذر تسجيل الدخول، تحقق من بياناتك وحاول مرة أخرى':
         'Could not sign in. Check your information and try again.',
     'تعذر إرسال رمز التحقق، حاول مرة أخرى':
@@ -293,6 +317,10 @@ class AppLocalizations {
     'العربية': 'Arabic',
     'الإنجليزية': 'English',
     'تغيير اللغة': 'Change language',
+    'رسوم النشر: ٣٠٠ جنيه لكل إعلان أو مشروع شراكة':
+        'Posting fee: EGP 300 per property listing or partnership project',
+    'التحصيل غير مفعّل حالياً. لن يتم خصم أي مبلغ حتى ربط بوابة الدفع.':
+        'Payments are not enabled yet. No amount will be charged until a payment gateway is connected.',
   };
 }
 

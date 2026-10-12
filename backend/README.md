@@ -31,7 +31,9 @@ The development endpoints are disabled when `NODE_ENV=production`. The API verif
 Create a Cloudinary account and configure `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` on the API service (for local Compose, put them in the project-root `.env`). Never add the API secret to Flutter or commit it. Signed uploads require a Firebase-authenticated user. The app accepts up to 10 files per listing, with a 25 MB per-file limit; uploaded URLs and media types are saved transactionally in `property_media`. Cloudinary plan quotas and terms apply.
 
 
-## Firebase phone authentication
+## Firebase Google and legacy phone authentication
+
+New app sign-ins use Google and do not require a verified phone claim. Phone sign-ins remain accepted for existing accounts; contact phone numbers are collected separately on listings and are not verified.
 
 Set `FIREBASE_PROJECT_ID` (or `GOOGLE_CLOUD_PROJECT`) and provide Google Application Default Credentials to the server using the hosting provider's workload identity or an equivalent managed service account. Do not commit service-account JSON keys. Production startup fails if the Firebase project ID or an explicit web CORS_ORIGIN is missing. Authenticated clients send their Firebase ID token as Authorization: Bearer <token>; the API verifies it and uses the verified Firebase UID and phone number, never a client-supplied owner ID. Apply the updated schema to existing databases before deploying.
 
@@ -42,7 +44,11 @@ For an existing database, apply these additive migration statements manually bef
 
 ALTER TYPE project_status ADD VALUE IF NOT EXISTS 'rejected';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128);
+ALTER TABLE users ALTER COLUMN phone DROP NOT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(320);
 CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_idx ON users(firebase_uid) WHERE firebase_uid IS NOT NULL;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(24);
+ALTER TABLE partnership_projects ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(24);
 ALTER TABLE partnership_projects ADD COLUMN IF NOT EXISTS minimum_contribution_egp NUMERIC(14,2);
 UPDATE partnership_projects SET minimum_contribution_egp = GREATEST(1, CEIL((land_price_egp + build_cost_egp + additional_costs_egp) / target_members)) WHERE minimum_contribution_egp IS NULL;
 ALTER TABLE partnership_projects ALTER COLUMN minimum_contribution_egp SET NOT NULL;

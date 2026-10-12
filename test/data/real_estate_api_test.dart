@@ -3,6 +3,7 @@ import 'package:real_estate_app/data/api_transport_types.dart';
 import 'package:real_estate_app/data/real_estate_api.dart';
 import 'package:real_estate_app/models/property_listing.dart';
 import 'package:real_estate_app/models/property_media.dart';
+import 'package:real_estate_app/utils/phone_number.dart';
 
 void main() {
   test('sends Firebase ID tokens as Bearer authorization', () async {
@@ -55,6 +56,31 @@ void main() {
     expect(decoded.media, hasLength(1));
     expect(decoded.media.single.url, listing.media.single.url);
     expect(decoded.media.single.type, 'video');
+  });
+
+  test('normalizes Egyptian contact phone numbers for listings', () {
+    expect(normalizeContactPhoneNumber('010 1234 5678'), '+201012345678');
+    expect(normalizeContactPhoneNumber('+1 (212) 555-0100'), '+12125550100');
+    expect(normalizeContactPhoneNumber('123'), isNull);
+  });
+
+  test('round-trips listing contact phone numbers', () {
+    const listing = PropertyListing(
+      id: 'property-2',
+      title: 'Contact listing',
+      city: 'Cairo',
+      district: 'Nasr City',
+      priceEgp: 1200000,
+      areaM2: 120,
+      bedrooms: 2,
+      propertyType: 'apartment',
+      contactPhone: '+201012345678',
+    );
+
+    expect(
+      PropertyListing.fromJson(listing.toJson()).contactPhone,
+      listing.contactPhone,
+    );
   });
 }
 

@@ -103,6 +103,7 @@ function toProperty(row) {
     description: row.description,
     city: row.city,
     district: row.district,
+    contactPhone: row.contact_phone || '',
     propertyType: row.property_type,
     priceEgp: Number(row.price_egp),
     areaM2: Number(row.area_m2),
@@ -159,6 +160,7 @@ function toProject(row) {
     description: row.description,
     city: row.city,
     district: row.district,
+    contactPhone: row.contact_phone || '',
     targetMembers: Number(row.target_members),
     minimumContributionEgp: Number(row.minimum_contribution_egp),
     expectedDurationMonths: Number(row.expected_duration_months),
@@ -199,8 +201,14 @@ async function authenticateFirebase(req) {
   }
   try {
     const decoded = await getAuth().verifyIdToken(match[1], true);
-    if (!decoded.uid || !decoded.phone_number) {
-      const error = new Error('A verified phone number is required');
+    if (!decoded.uid) {
+      const error = new Error('A Firebase account is required');
+      error.status = 403;
+      throw error;
+    }
+    const provider = decoded.firebase?.sign_in_provider;
+    if (provider !== 'google.com' && provider !== 'phone') {
+      const error = new Error('Sign in with Google to use this service');
       error.status = 403;
       throw error;
     }
@@ -214,23 +222,50 @@ async function authenticateFirebase(req) {
 }
 
 async function getDatabaseUser(decoded) {
-  const phone = decoded.phone_number;
-  const displayName = String(decoded.name || phone).slice(0, 120);
-  const result = await pool.query(
-    `INSERT INTO users (firebase_uid, phone, display_name, verified_at)
-     VALUES ($1, $2, $3, now())
-     ON CONFLICT (phone) DO UPDATE
-       SET firebase_uid = COALESCE(users.firebase_uid, EXCLUDED.firebase_uid),
-           display_name = EXCLUDED.display_name,
-           verified_at = COALESCE(users.verified_at, now())
-       WHERE users.firebase_uid IS NULL OR users.firebase_uid = EXCLUDED.firebase_uid
-     RETURNING id, firebase_uid, phone, display_name, role`,
-    [decoded.uid, phone, displayName],
-  );
-  if (result.rowCount === 0) {
-    const error = new Error('This phone number is linked to another account');
-    error.status = 409;
-    throw error;
+  const phone = decoded.phone_number || null;
+  const email = decoded.email || null;
+  const displayName = String(
+    decoded.name || email?.split('@')[0] || 'Google user',
+  ).slice(0, 120);
+  let result;
+  try {
+    if (phone) {
+      result = await pool.query(
+        `INSERT INTO users (firebase_uid, email, phone, display_name, verified_at)
+         VALUES ($1, $2, $3, $4, now())
+         ON CONFLICT (phone) DO UPDATE
+           SET firebase_uid = COALESCE(users.firebase_uid, EXCLUDED.firebase_uid),
+               email = COALESCE(EXCLUDED.email, users.email),
+               display_name = EXCLUDED.display_name,
+               verified_at = COALESCE(users.verified_at, now())
+           WHERE users.firebase_uid IS NULL OR users.firebase_uid = EXCLUDED.firebase_uid
+         RETURNING id, firebase_uid, email, phone, display_name, role`,
+        [decoded.uid, email, phone, displayName],
+      );
+      if (result.rowCount === 0) {
+        const error = new Error('This phone number is linked to another account');
+        error.status = 409;
+        throw error;
+      }
+    } else {
+      result = await pool.query(
+        `INSERT INTO users (firebase_uid, email, display_name)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (firebase_uid) WHERE firebase_uid IS NOT NULL DO UPDATE
+           SET email = COALESCE(EXCLUDED.email, users.email),
+               display_name = EXCLUDED.display_name
+         RETURNING id, firebase_uid, email, phone, display_name, role`,
+        [decoded.uid, email, displayName],
+      );
+    }
+  } catch (cause) {
+    if (cause.status) throw cause;
+    if (cause.code === '23505') {
+      const error = new Error('This account conflicts with an existing user');
+      error.status = 409;
+      throw error;
+    }
+    throw cause;
   }
   return result.rows[0];
 }
@@ -336,7 +371,7 @@ app.get('/api/properties', asyncRoute(async (req, res) => {
     clauses.push(`(title ILIKE $${values.length} OR description ILIKE $${values.length} OR city ILIKE $${values.length} OR district ILIKE $${values.length})`);
   }
   const result = await pool.query(
-    `SELECT id, title, description, city, district, property_type, price_egp, area_m2, bedrooms, status,
+    `SELECT id, title, description, city, district, contact_phone, property_type, price_egp, area_m2, bedrooms, status,
             ${propertyMediaSelect}
      FROM properties WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC LIMIT 100`,
     values,
@@ -356,7 +391,7 @@ app.get('/api/partnership-projects', asyncRoute(async (req, res) => {
     clauses.push(`(p.title ILIKE $${values.length} OR p.description ILIKE $${values.length} OR p.district ILIKE $${values.length})`);
   }
   const result = await pool.query(
-    `SELECT p.id, p.title, p.description, p.city, p.district, p.target_members, p.minimum_contribution_egp,
+    `SELECT p.id, p.title, p.description, p.city, p.district, p.contact_phone, p.target_members, p.minimum_contribution_egp,
             p.expected_duration_months, p.total_units, p.land_price_egp,
             p.build_cost_egp, p.status,
             COUNT(m.id) FILTER (WHERE m.status = 'approved') AS current_member_count,
@@ -373,7 +408,7 @@ app.get('/api/partnership-projects', asyncRoute(async (req, res) => {
 app.get('/api/dev/my-properties', asyncRoute(async (req, res) => {
   const userId = await requireOwner(req, String(req.query.userId || ''));
   const result = await pool.query(
-    `SELECT id, title, description, city, district, property_type, price_egp, area_m2, bedrooms, status,
+    `SELECT id, title, description, city, district, contact_phone, property_type, price_egp, area_m2, bedrooms, status,
             ${propertyMediaSelect}
      FROM properties WHERE owner_id = $1 ORDER BY created_at DESC LIMIT 100`,
     [userId],
@@ -384,7 +419,7 @@ app.get('/api/dev/my-properties', asyncRoute(async (req, res) => {
 app.get('/api/dev/my-partnership-projects', asyncRoute(async (req, res) => {
   const userId = await requireOwner(req, String(req.query.userId || ''));
   const result = await pool.query(
-    `SELECT p.id, p.title, p.description, p.city, p.district, p.target_members, p.minimum_contribution_egp,
+    `SELECT p.id, p.title, p.description, p.city, p.district, p.contact_phone, p.target_members, p.minimum_contribution_egp,
             p.expected_duration_months, p.total_units, p.land_price_egp,
             p.build_cost_egp, p.status,
             COUNT(m.id) FILTER (WHERE m.status = 'approved') AS current_member_count,
@@ -399,13 +434,13 @@ app.get('/api/dev/my-partnership-projects', asyncRoute(async (req, res) => {
 
 app.get('/api/me', asyncRoute(async (req, res) => {
   const user = await currentUser(req);
-  res.json({ data: { id: user.id, phone: user.phone, displayName: user.display_name, role: user.role } });
+  res.json({ data: { id: user.id, email: user.email, phone: user.phone, displayName: user.display_name, role: user.role } });
 }));
 
 app.get('/api/me/properties', asyncRoute(async (req, res) => {
   const user = await currentUser(req);
   const result = await pool.query(
-    `SELECT id, title, description, city, district, property_type, price_egp, area_m2, bedrooms, status,
+    `SELECT id, title, description, city, district, contact_phone, property_type, price_egp, area_m2, bedrooms, status,
             ${propertyMediaSelect}
      FROM properties WHERE owner_id = $1 ORDER BY created_at DESC LIMIT 100`,
     [user.id],
@@ -416,7 +451,7 @@ app.get('/api/me/properties', asyncRoute(async (req, res) => {
 app.get('/api/me/partnership-projects', asyncRoute(async (req, res) => {
   const user = await currentUser(req);
   const result = await pool.query(
-    `SELECT p.id, p.title, p.description, p.city, p.district, p.target_members, p.minimum_contribution_egp,
+    `SELECT p.id, p.title, p.description, p.city, p.district, p.contact_phone, p.target_members, p.minimum_contribution_egp,
             p.expected_duration_months, p.total_units, p.land_price_egp,
             p.build_cost_egp, p.status,
             COUNT(m.id) FILTER (WHERE m.status = 'approved') AS current_member_count,
@@ -513,17 +548,21 @@ app.post('/api/properties', asyncRoute(async (req, res) => {
   const ownerId = await requireOwner(req, String(req.body.ownerId || ''));
   const media = validatePropertyMedia(req.body.media);
   const { title, description, city, district, propertyType } = req.body;
+  const contactPhone = String(req.body.contactPhone || '').trim();
   if (![title, description, city, district, propertyType].every((value) => typeof value === 'string' && value.trim())) {
     return res.status(400).json({ message: 'Title, description, location, and property type are required.' });
+  }
+  if (!/^\+[1-9]\d{7,14}$/.test(contactPhone)) {
+    return res.status(400).json({ message: 'A valid international contact phone number is required.' });
   }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const result = await client.query(
-      `INSERT INTO properties (owner_id, title, description, property_type, city, district, price_egp, area_m2, bedrooms, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending_review')
-       RETURNING id, title, description, city, district, property_type, price_egp, area_m2, bedrooms, status`,
-      [ownerId, title.trim(), description.trim(), propertyType, city.trim(), district.trim(),
+      `INSERT INTO properties (owner_id, title, description, property_type, city, district, contact_phone, price_egp, area_m2, bedrooms, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending_review')
+       RETURNING id, title, description, city, district, contact_phone, property_type, price_egp, area_m2, bedrooms, status`,
+      [ownerId, title.trim(), description.trim(), propertyType, city.trim(), district.trim(), contactPhone,
         numberField(req.body.priceEgp, 'priceEgp', { min: 0.01 }),
         numberField(req.body.areaM2, 'areaM2', { min: 0.01 }),
         numberField(req.body.bedrooms, 'bedrooms', { integer: true })],
@@ -550,17 +589,21 @@ app.post('/api/properties', asyncRoute(async (req, res) => {
 app.post('/api/partnership-projects', asyncRoute(async (req, res) => {
   const managerId = await requireOwner(req, String(req.body.managerId || ''));
   const { title, description, city, district } = req.body;
+  const contactPhone = String(req.body.contactPhone || '').trim();
   if (![title, description, city, district].every((value) => typeof value === 'string' && value.trim())) {
     return res.status(400).json({ message: 'Title, description, city, and district are required.' });
   }
+  if (!/^\+[1-9]\d{7,14}$/.test(contactPhone)) {
+    return res.status(400).json({ message: 'A valid international contact phone number is required.' });
+  }
   const result = await pool.query(
     `INSERT INTO partnership_projects
-       (manager_id, title, description, city, district, land_price_egp, build_cost_egp,
+       (manager_id, title, description, city, district, contact_phone, land_price_egp, build_cost_egp,
         minimum_contribution_egp, total_units, target_members, expected_duration_months, allocation_method, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'unit_based', 'pending_review')
-     RETURNING id, title, description, city, district, target_members, minimum_contribution_egp, expected_duration_months,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'unit_based', 'pending_review')
+     RETURNING id, title, description, city, district, contact_phone, target_members, minimum_contribution_egp, expected_duration_months,
                total_units, land_price_egp, build_cost_egp, status`,
-    [managerId, title.trim(), description.trim(), city.trim(), district.trim(),
+    [managerId, title.trim(), description.trim(), city.trim(), district.trim(), contactPhone,
       numberField(req.body.landPriceEgp, 'landPriceEgp', { min: 0.01 }),
       numberField(req.body.estimatedBuildCostEgp, 'estimatedBuildCostEgp'),
       numberField(req.body.minimumContributionEgp, 'minimumContributionEgp', { min: 0.01 }),

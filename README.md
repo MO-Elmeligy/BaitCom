@@ -28,7 +28,7 @@ docker compose up --build
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
 ````
 
-لرفع صور وفيديوهات العقارات، أنشئ حساب Cloudinary وأضف `CLOUDINARY_CLOUD_NAME` و`CLOUDINARY_API_KEY` و`CLOUDINARY_API_SECRET` إلى ملف `.env` في جذر المشروع قبل تشغيل Compose. لا تضف السر إلى التطبيق أو Git. يتطلب الرفع تسجيل الدخول برقم الهاتف، ويسمح بما يصل إلى ١٠ ملفات بحد أقصى ٢٥ ميجابايت لكل ملف. راجع [إعدادات الوسائط في API](backend/README.md#property-photos-and-videos).
+لرفع صور وفيديوهات العقارات، أنشئ حساب Cloudinary وأضف `CLOUDINARY_CLOUD_NAME` و`CLOUDINARY_API_KEY` و`CLOUDINARY_API_SECRET` إلى ملف `.env` في جذر المشروع قبل تشغيل Compose. لا تضف السر إلى التطبيق أو Git. يتطلب الرفع تسجيل الدخول بحساب Google، ويسمح بما يصل إلى ١٠ ملفات بحد أقصى ٢٥ ميجابايت لكل ملف. راجع [إعدادات الوسائط في API](backend/README.md#property-photos-and-videos).
 
 ## إعداد نسخة الإنتاج
 
@@ -39,13 +39,13 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
 ## توقيع Android
 
 لم يعد بناء Android Release يستخدم مفتاح Debug. أنشئ مفتاح رفع خاصًا باستخدام keytool -genkeypair -v -keystore android/app/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload. أنشئ android/key.properties واكتب فيه storePassword وkeyPassword وkeyAlias=upload وstoreFile=app/upload-keystore.jks، مع كلمات المرور التي اخترتها. يحتفظ Gradle بالمفتاح محليًا ويتوقف بوضوح إذا كان إعداد التوقيع ناقصًا. ملفات المفتاح وكلمات المرور مستثناة من Git؛ احتفظ بنسخة احتياطية آمنة ولا ترفعها إلى المستودع.
-## تسجيل الدخول برقم الهاتف (Firebase)
+## تسجيل الدخول بحساب Google (Firebase)
 
-أضيف تسجيل الدخول برمز SMS أو Google عبر Firebase Authentication. حساب Google يجب أن يربط رقم هاتف موثقًا قبل استخدام المسارات التي تتطلب مصادقة في الـ API. بعد تسجيل الدخول أو ربط الهاتف، يحدّث التطبيق Firebase ID token ويرسله إلى الـ API بصيغة Bearer؛ ويتحقق الخادم من التوكن ورقم الهاتف الموثق. Android يقرأ إعداد Firebase الافتراضي من `android/app/google-services.json`، بينما تحتاج الويب وiOS إلى إعداداتهما الخاصة كما هو موضح أدناه. عند غياب إعداد Firebase في وضع التطوير يبقى تصفح بيانات المعاينة متاحًا.
+يستخدم التطبيق تسجيل الدخول بحساب Google عبر Firebase Authentication؛ لا يرسل التطبيق رسائل SMS ولا يطلب توثيق الهاتف. يُدخل صاحب الإعلان رقم تواصل عند إنشاء إعلان عقار أو مشروع شراكة، ويظهر هذا الرقم للمهتمين. بعد تسجيل الدخول، يرسل التطبيق Firebase ID token إلى الـ API بصيغة Bearer ويتحقق الخادم من التوكن ومزوّد تسجيل الدخول. Android يقرأ إعداد Firebase الافتراضي من `android/app/google-services.json`، بينما تحتاج الويب وiOS إلى إعداداتهما الخاصة كما هو موضح أدناه. عند غياب إعداد Firebase في وضع التطوير يبقى تصفح بيانات المعاينة متاحًا.
 
 1. أنشئ Firebase project وسجّل تطبيق Android بمعرّف `com.realestate.real_estate_app` وتطبيق iOS بمعرّف الحزمة `com.realestate.realEstateApp`.
-2. فعّل Phone وGoogle providers من Firebase Authentication، واضبط سياسة الدول المسموح بها لإرسال SMS. تحقّق من دعم الإرسال إلى مصر وحدود الرسائل قبل الإطلاق.
-3. سجّل SHA-1 وSHA-256 لشهادة Android في Firebase، ثم نزّل أحدث `google-services.json` واستبدل `android/app/google-services.json` به. يحتاج Google sign-in على Android إلى OAuth client وشهادة صحيحة. لتطبيق iOS أضف `GoogleService-Info.plist` وإعداد URL scheme الخاص بـ Google إلى Runner.
+2. فعّل Google provider من Firebase Authentication.
+3. سجّل SHA-1 وSHA-256 لشهادة Android في Firebase، ثم نزّل أحدث `google-services.json` وضعه في `android/app/google-services.json`. يحتاج Google sign-in على Android إلى OAuth client وشهادة صحيحة. لتطبيق iOS أضف `GoogleService-Info.plist` وإعداد URL scheme الخاص بـ Google إلى Runner.
 4. للويب، خذ `project ID` و`sender ID` و`API key` و`App ID` من إعدادات Firebase ومرّرها عبر `--dart-define`؛ هذه معرفات إعداد عميل وليست أسرار خادم.
 
 مثال Android في PowerShell (استبدل القيم ببيانات مشروع Firebase الفعلية):
@@ -60,6 +60,6 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000 --dart-define=FIREBA
 flutter build ipa --release --dart-define=API_BASE_URL=https://api.example.com --dart-define=FIREBASE_PROJECT_ID=your-project-id --dart-define=FIREBASE_MESSAGING_SENDER_ID=123456789 --dart-define=FIREBASE_IOS_API_KEY=your-ios-api-key --dart-define=FIREBASE_IOS_APP_ID=1:123456789:ios:your-app-id --dart-define=FIREBASE_IOS_BUNDLE_ID=com.realestate.realEstateApp
 ```
 
-لواجهة الويب أضف `FIREBASE_WEB_API_KEY` و`FIREBASE_WEB_APP_ID` و`FIREBASE_WEB_AUTH_DOMAIN`، ثم أضف نطاق الموقع إلى Authorized domains في Firebase. يدعم Firebase Flutter `verifyPhoneNumber` على Android/iOS و`signInWithPhoneNumber` على الويب، وقد يتطلب اختبار SMS أرقامًا تجريبية مسجلة في Firebase Console.
+لواجهة الويب أضف `FIREBASE_WEB_API_KEY` و`FIREBASE_WEB_APP_ID` و`FIREBASE_WEB_AUTH_DOMAIN`، ثم أضف نطاق الموقع إلى Authorized domains في Firebase.
 
-راجع [إعداد Firebase لتطبيق Flutter](https://firebase.google.com/docs/flutter/setup) و[توثيق Phone Auth في Flutter](https://firebase.google.com/docs/auth/flutter/phone-auth). رقم الهاتف يُرسل إلى Google ويُخزّن لديها لأغراض منع إساءة الاستخدام؛ لذلك يعرض التطبيق إشعارًا وموافقة قبل الإرسال.
+راجع [إعداد Firebase لتطبيق Flutter](https://firebase.google.com/docs/flutter/setup) و[تسجيل الدخول بحساب Google](https://firebase.google.com/docs/auth/flutter/federated-auth).

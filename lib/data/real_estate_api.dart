@@ -142,6 +142,7 @@ class RealEstateApi {
       'landPriceEgp': project.landPriceEgp,
       'estimatedBuildCostEgp': project.estimatedBuildCostEgp,
       'minimumContributionEgp': project.minimumContributionEgp,
+      'contactPhone': project.contactPhone,
     };
     if (managerId case final value?) {
       body['managerId'] = value;
